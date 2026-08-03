@@ -6,6 +6,34 @@ If you have forked this template, see the **Upgrading** section at the bottom fo
 
 ---
 
+## v2.2.0 — 2026-08-03
+
+An **honesty-hardening release**, distilled from a production research project's
+self-audit (a session in which every substantive error was caught by an independent
+verifier and none by the author). Additive; no migration needed.
+
+### Added
+- **`.claude/rules/stop-and-ask.md`** — six decision classes where Claude must ask
+  before acting, overriding any autonomous output style: released-data mutation,
+  semantic rules for real data, published-number changes, irreversible ops without a
+  verified backup, materially divergent instruction readings, and verification statuses
+  set by anything other than recomputation. Each trigger traces to a real incident.
+- **Protected-outputs guard** in `.claude/hooks/git-guardrails.py` — projects list
+  released data files in `.claude/protected-outputs.txt` (globs); Bash commands that
+  write them in place are denied without the explicit `CLAUDE_DATA_MUTATION_OK=1`
+  acknowledgment. Inert when the config file is absent.
+- **`scripts/check-passport-provenance.py`** + pre-commit wiring — commits that change
+  a passport claim without FRESH recompute provenance in `last_verified_by` fail. The
+  freshness requirement exists because a stale verifier string was found whitelisting
+  new edits while testing the gate itself.
+- **Verification-protocol additions**: *Verify the Probe* (a failing check is
+  unverified until it matches a known-positive; PDF probes need NFKC + whitespace
+  normalization and must sweep the built artifact) and *Statuses Change Only by
+  Recompute*.
+
+### Changed
+- Rule count 32 → 33 across README, guide, and site (surface-sync enforced).
+
 ## v2.1.0 — 2026-06-10
 
 A **currency + citability release**, driven by a 48-agent web-verified audit ("is this actually up to date and the best for economists, today?"). The architecture audit came back clean — the fixes are facts, not structure.

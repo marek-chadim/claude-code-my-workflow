@@ -66,6 +66,36 @@ HARDCODED_PATH = re.compile(r"(/Users/[^/\s'\")]+|/home/[^/\s'\")]+|[A-Za-z]:\\\
 CODE_EXT = {".R", ".r", ".qmd", ".do", ".py", ".Rmd"}
 
 
+# --- Protected-outputs guard (stop-and-ask trigger 1) -----------------------------
+# Projects list released/deposited data files (glob patterns, one per line, # comments)
+# in .claude/protected-outputs.txt. A Bash command that references a protected file
+# together with a write/replace idiom is denied unless prefixed with
+# CLAUDE_DATA_MUTATION_OK=1 (which the stop-and-ask rule says to set only after the
+# user has explicitly agreed). Inert when the config file is absent.
+import fnmatch
+
+def _protected_patterns() -> list[str]:
+    cfg = Path(os.environ.get("CLAUDE_PROJECT_DIR", ".")) / ".claude" / "protected-outputs.txt"
+    try:
+        return [ln.strip() for ln in cfg.read_text().splitlines()
+                if ln.strip() and not ln.startswith("#")]
+    except OSError:
+        return []
+
+WRITE_IDIOM = re.compile(
+    r"(>\s*\S+|\.replace\(|shutil\.move|os\.replace|to_csv\(|with open\([^)]*['\"]w)")
+
+def _protected_hit(cmd: str) -> str | None:
+    pats = _protected_patterns()
+    if not pats or "CLAUDE_DATA_MUTATION_OK=1" in cmd or not WRITE_IDIOM.search(cmd):
+        return None
+    for tok in re.findall(r"[\w./-]+", cmd):
+        for pat in pats:
+            if fnmatch.fnmatch(tok, pat) or fnmatch.fnmatch(tok, "*/" + pat):
+                return tok
+    return None
+
+
 def deny(reason: str) -> None:
     json.dump({"hookSpecificOutput": {
         "hookEventName": "PreToolUse",
@@ -85,6 +115,13 @@ def main() -> int:
 
     if tool == "Bash":
         cmd = ti.get("command", "") or ""
+        hit = _protected_hit(cmd)
+        if hit:
+            deny(f"Blocked by git-guardrails: this command writes protected output "
+                 f"'{hit}' in place (.claude/rules/stop-and-ask.md trigger 1). Get the "
+                 f"user's explicit yes, create a timestamped .bak, show a dry-run, then "
+                 f"prefix with CLAUDE_DATA_MUTATION_OK=1.")
+            return 0
         for pat, reason, alt in GIT_DENY:
             if pat.search(cmd):
                 deny(f"Blocked by git-guardrails: {reason} {alt} "

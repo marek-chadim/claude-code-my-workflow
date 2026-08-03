@@ -79,6 +79,13 @@ else
                 echo "✗ quality gate: '$f' failed (rc=$rc — 2=compile/syntax failure, 1=score<80 or scorer error)." >&2
                 FAIL=1
             fi
+
+# Passport provenance gate (stop-and-ask trigger 6): changed passport claims must carry
+# FRESH recompute provenance in last_verified_by. Fail-open on infra errors inside the
+# checker; a genuine violation blocks the commit.
+if command -v python3 >/dev/null 2>&1 && [ -f "scripts/check-passport-provenance.py" ]; then
+    python3 scripts/check-passport-provenance.py || exit 1
+fi
         done <<< "$STAGED"
     else
         echo ""

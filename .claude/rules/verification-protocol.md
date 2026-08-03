@@ -51,3 +51,21 @@ paths:
 [ ] Opened in browser/viewer to confirm visual appearance
 [ ] Reported results to user
 ```
+
+
+## Verify the Probe
+
+A check that is about to report a FAILURE must itself be validated before the failure is
+reported: run the same probe against a known-positive first. Documented failure modes
+from one production session: pdftotext ligatures ("ﬁscal" vs "fiscal"), line-wrapped
+probe strings, a `pgrep` matching its own command line, and a negative test whose
+tamper-edit was a silent no-op. For PDF text checks: NFKC-normalize and collapse
+whitespace before substring matching, and sweep the BUILT artifact, not the source.
+
+## Statuses Change Only by Recompute
+
+Passport claim statuses, test expectations, and any "verified" label change only via
+recomputation or a named verifier agent — never by text substitution. The
+`last_verified_by` field must name the recompute source, and it must be refreshed WITH
+the change (stale provenance from an earlier pass must not whitelist new edits).
+Enforced at commit time by `scripts/check-passport-provenance.py`.
