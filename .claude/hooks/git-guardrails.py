@@ -42,15 +42,19 @@ from pathlib import Path
 _GO = (r"(?:-C\s+\S+\s+|-c\s+\S+\s+|--git-dir(?:=\S+\s+|\s+\S+\s+)|"
        r"--work-tree(?:=\S+\s+|\s+\S+\s+)|--no-pager\s+|--paginate\s+|-p\s+)*")
 
+# NOTE: the subcommand patterns below bound their wildcard with [^;&|\n]* rather
+# than .* — an unbounded .* spans command separators, so `git push origin main &&
+# git worktree remove --force /tmp/w` read as a forced push and was denied
+# (false positive hit 2026-08-04). Compound commands are one string to the hook.
 # (compiled pattern, human reason, safe alternative)
 GIT_DENY = [
     (re.compile(r"\bgit\s+" + _GO + r"reset\s+--hard\b"),
      "git reset --hard discards uncommitted work irrecoverably.",
      "Use `git stash` (recoverable) or reset specific paths."),
-    (re.compile(r"\bgit\s+" + _GO + r"clean\b.*(--force\b|(?<![\w-])-[a-z]*f)"),
+    (re.compile(r"\bgit\s+" + _GO + r"clean\b[^;&|\n]*(--force\b|(?<![\w-])-[a-z]*f)"),
      "git clean -f/--force deletes UNTRACKED files — including data not yet committed.",
      "Inspect with `git clean -n` first; delete specific paths by hand."),
-    (re.compile(r"\bgit\s+" + _GO + r"push\b.*(--force(?![\w-])|(?<!-)\s-f\b)"),
+    (re.compile(r"\bgit\s+" + _GO + r"push\b[^;&|\n]*(--force(?![\w-])|(?<!-)\s-f\b)"),
      "git push --force clobbers remote history.",
      "Use `git push --force-with-lease` if you truly must rewrite a branch."),
     (re.compile(r"\bgit\s+" + _GO + r"add\s+(?:--\s+)?(-A\b|--all\b|\.(?:\s|$)|:/)"),
